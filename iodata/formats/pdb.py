@@ -96,8 +96,8 @@ def _parse_pdb_conect_line(line):
     # 17 - 21       Integer        serial       Serial number of bonded atom
     # 22 - 26       Integer        serial       Serial number of bonded atom
     # 27 - 31       Integer        serial       Serial number of bonded atom
-    iatom0 = int(line[7:12]) - 1
-    for ipos in 12, 17, 22, 27:
+    iatom0 = int(line[6:11]) - 1
+    for ipos in 11, 16, 21, 26:
         serial_str = line[ipos: ipos + 5].strip()
         if serial_str != "":
             iatom1 = int(serial_str) - 1
