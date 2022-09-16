@@ -32,7 +32,7 @@ except ImportError:
     from importlib.resources import path
 
 
-@pytest.mark.parametrize("case", ["single", "single_model"])
+@pytest.mark.parametrize("case", ["single", "single_model", "single_high_serial"])
 def test_load_water(case):
     # test pdb of water
     with path('iodata.test.data', f'water_{case}.pdb') as fn_pdb:
@@ -90,6 +90,7 @@ def check_load_dump_consistency(tmpdir, fn):
 @pytest.mark.parametrize("fn_base", [
     "water_single.pdb",
     "water_single_model.pdb",
+    "water_single_high_serial.pdb",
     "ch5plus.pdb",
     "2luv.pdb",
     "2bcw.pdb",

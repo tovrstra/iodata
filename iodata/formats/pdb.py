@@ -61,6 +61,8 @@ def _parse_pdb_atom_line(line):
     # 77 - 78        LString(2)    element      Element symbol, right-justified.
     # 79 - 80        LString(2)    charge       Charge  on the atom.
 
+    # Read the serial, and don't convert to integer. It may sometimes be hexadecimal.
+    serial = line[6:11].strip()
     # Get element symbol from position 77:78 in pdb format
     words = line[76:78].split()
     if not words:
@@ -83,7 +85,7 @@ def _parse_pdb_atom_line(line):
     # get occupancies & temperature factor
     occupancy = float(line[54:60])
     bfactor = float(line[60:66])
-    return atnum, attype, restype, chainid, resnum, atcoord, occupancy, bfactor
+    return serial, atnum, attype, restype, chainid, resnum, atcoord, occupancy, bfactor
 
 
 def _parse_pdb_conect_line(line):
@@ -96,13 +98,14 @@ def _parse_pdb_conect_line(line):
     # 17 - 21       Integer        serial       Serial number of bonded atom
     # 22 - 26       Integer        serial       Serial number of bonded atom
     # 27 - 31       Integer        serial       Serial number of bonded atom
-    iatom0 = int(line[6:11]) - 1
+
+    # Serials are not converted to integers because they are sometimes hexadecimal strings.
+    serial0 = line[6:11].strip()
     for ipos in 11, 16, 21, 26:
-        serial_str = line[ipos: ipos + 5].strip()
-        if serial_str != "":
-            iatom1 = int(serial_str) - 1
-            if iatom1 > iatom0:
-                yield iatom0, iatom1
+        serial1 = line[ipos: ipos + 5].strip()
+        if serial1 != "":
+            if serial1 > serial0:
+                yield serial0, serial1
 
 
 @document_load_one("PDB", ['atcoords', 'atnums', 'atffparams', 'extra'], ['title', 'bonds'])
@@ -110,6 +113,7 @@ def load_one(lit: LineIterator) -> dict:  # pylint: disable=too-many-branches, t
     """Do not edit this docstring. It will be overwritten."""
     title_lines = []
     compnd_lines = []
+    serials = []
     atnums = []
     attypes = []
     restypes = []
@@ -132,8 +136,9 @@ def load_one(lit: LineIterator) -> dict:  # pylint: disable=too-many-branches, t
         if line.startswith("COMPND"):
             compnd_lines.append(line[10:].strip())
         if line.startswith("ATOM") or line.startswith("HETATM"):
-            (atnum, attype, restype, chainid, resnum, atcoord, occupancy,
+            (serial, atnum, attype, restype, chainid, resnum, atcoord, occupancy,
              bfactor) = _parse_pdb_atom_line(line)
+            serials.append(serial)
             atnums.append(atnum)
             attypes.append(attype)
             restypes.append(restype)
@@ -143,8 +148,12 @@ def load_one(lit: LineIterator) -> dict:  # pylint: disable=too-many-branches, t
             occupancies.append(occupancy)
             bfactors.append(bfactor)
             molecule_found = True
+        # Make a dictionary for quickly looking up serials
+        serials_dict = dict((serial, index) for index, serial in enumerate(serials))
         if line.startswith("CONECT"):
-            for iatom0, iatom1 in _parse_pdb_conect_line(line):
+            for serial0, serial1 in _parse_pdb_conect_line(line):
+                iatom0 = serials_dict[serial0]
+                iatom1 = serials_dict[serial1]
                 bonds.append([iatom0, iatom1, bond2num["un"]])
         if line.startswith("END") and molecule_found:
             end_reached = True
